@@ -30,17 +30,61 @@ function Promise (executor) {
 
 Promise.prototype.then = function (onResolved, onRejected) {
     const self = this
+
+    onResolved = typeof onResolved === 'function' ? onResolved : function (value) {return value}
+    onRejected = typeof onRejected === 'function' ? onRejected : function (value) {return value}
+
     if (self.status === 'resolved') {
         return new Promise(function(resolve, reject) {
             try {
                 let x = onResolved(self.data)
                 if (x instanceof Promise) {
-                    return x.then(resolve, reject)
+                    x.then(resolve, reject)
                 }
                 resolve(x)
             } catch (err) {
                 reject(err)
             }
+        })
+    }
+
+    if (self.status === 'rejected') {
+        return new Promise(function(resolve, reject) {
+            try {
+                let x = onRejected(self.data)
+                if (x instanceof Promise) {
+                    x.then(resolve, reject)
+                }
+                resolve(x)
+            } catch (err) {
+                reject(err)
+            }
+        })
+    }
+
+    if (self.status === 'pending') {
+        return new Promise(function(resolve, reject) {
+            self.resolveList.push(function () {
+                try {
+                    let x = onResolved(self.data)
+                    if (x instanceof Promise) {
+                        return x.then(resolve, reject)
+                    }
+                } catch (err) {
+                    reject(err)
+                }
+            })
+
+            self.rejectList.push(function () {
+                try {
+                    let x = onRejected(self.data)
+                    if (x instanceof Promise) {
+                        return x.then(resolve, reject)
+                    }
+                } catch (err) {
+                    reject(err)
+                }
+            })
         })
     }
 }
